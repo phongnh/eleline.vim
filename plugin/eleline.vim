@@ -30,7 +30,16 @@ function! ElelineBufnrWinnr() abort
 endfunction
 
 function! ElelineTotalBuf() abort
-  return '[TOT:'.len(filter(range(1, bufnr('$')), 'buflisted(v:val)')).']'
+  " return '[TOT:'.len(filter(range(1, bufnr('$')), 'buflisted(v:val)')).']'
+  let l:prefix = 'BUF:'
+  let l:num = len(filter(range(1, bufnr('$')), 'buflisted(v:val)'))
+  if !s:gui && l:num > 0 && l:num < 20
+    function! s:circled_num(num) abort
+      return nr2char(9311 + a:num)
+    endfunction
+    return l:prefix.s:circled_num(l:num).' '
+  endif
+  return l:prefix.l:num
 endfunction
 
 function! ElelinePaste() abort
@@ -186,6 +195,29 @@ function! ElelineCoc() abort
   return get(g:, 'coc_status', '')
 endfunction
 
+function! ElelineEncoding() abort
+  let result = []
+  let encoding = &fenc != '' ? &fenc : &enc
+  if strlen(encoding) && encoding !=# 'utf-8'
+    call add(result, encoding)
+  endif
+  if &bomb
+    call add(result, 'BOM')
+  endif
+  let str = join(result, ' | ')
+  if strlen(str)
+    return printf(' %s ', str)
+  endif
+  return ''
+endfunction
+
+function! ElelineFileFormat() abort
+  if &ff && &ff !=# 'unix'
+    return &ff
+  end
+  return ''
+endfunction
+
 " https://github.com/liuchengxu/eleline.vim/wiki
 function! s:StatusLine() abort
   function! s:def(fn) abort
@@ -200,6 +232,7 @@ function! s:StatusLine() abort
   let l:warning = s:def('ElelineWarning')
   let l:tags = '%{exists("b:gutentags_files") ? gutentags#statusline() : ""} '
   let l:lcn = '%{ElelineLCN()}'
+  let l:lcn = ''
   let l:coc = '%{ElelineCoc()}'
   let l:vista = '%{ElelineVista()}'
   let l:prefix = l:bufnr_winnr.l:paste
@@ -207,13 +240,18 @@ function! s:StatusLine() abort
   if get(g:, 'eleline_slim', 0)
     return l:prefix.'%<'.l:common
   endif
-  let l:tot = s:def('ElelineTotalBuf')
+  " let l:tot = s:def('ElelineTotalBuf')
+  let l:tot = '%#ElelineTotalBuf# %{ElelineTotalBuf()} %*'
   let l:fsize = '%#ElelineFsize#%{ElelineFsize(@%)}%*'
   let l:m_r_f = '%#Eleline7# %m%r%y %*'
   let l:pos = '%#Eleline8# '.(s:font?"\ue0a1":'').'%l/%L:%c%V |'
+  let l:pos = ''
   let l:enc = ' %{&fenc != "" ? &fenc : &enc} | %{&bomb ? ",BOM " : ""}'
+  let l:enc = '%{ElelineEncoding()}'
   let l:ff = '%{&ff} %*'
+  let l:ff = '%{ElelineFileFormat()} %*'
   let l:pct = '%#Eleline9# %P %*'
+  let l:pct = ''
   return l:prefix.l:tot.'%<'.l:fsize.l:common
         \ .'%='.l:m_r_f.l:pos.l:enc.l:ff.l:pct
 endfunction
